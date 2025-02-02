@@ -1,1 +1,1 @@
-# test
+# test application for CNNM
