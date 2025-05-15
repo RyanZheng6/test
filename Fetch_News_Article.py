@@ -8,8 +8,7 @@ from bs4 import BeautifulSoup
 from transformers import pipeline
 from Relevancy_Module import calculate_relevance_score
 
-
-def fetch_news_api_articles(query, days_back=7, api_key="api_key"):
+def fetch_news_api_articles(query, days_back=7, api_key="641688cba56f4ae8b7ef0acb60543185"):
     """Fetch articles from News API."""
     print(f"Fetching articles from News API for: {query}")
     last_week = datetime.datetime.now() - datetime.timedelta(days=days_back)
@@ -74,8 +73,17 @@ def fetch_google_news_articles(query):
 
 
 def process_articles(articles, keywords):
-    """Process and filter articles."""
+    """Process and filter articles.
+    
+    Args:
+        articles (list): List of articles to process
+        keywords (dict or list): Keywords to use for relevance scoring
+        
+    Returns:
+        list: Filtered and processed articles
+    """
     filtered_articles = []
+    min_relevance_score = 3  # Minimum score to consider an article relevant
 
     for article in articles:
         title = article.get('title', '') or ''
@@ -90,8 +98,10 @@ def process_articles(articles, keywords):
             combined_text = f"{title} {description} {content}"
             relevance_score = calculate_relevance_score(combined_text, keywords)
 
-            # Add relevance score to article
-            article['relevance_score'] = relevance_score
-            filtered_articles.append(article)
+            # Add relevance score to article if it meets the minimum threshold
+            if relevance_score >= min_relevance_score:
+                article['relevance_score'] = relevance_score
+                filtered_articles.append(article)
 
+    print(f"Filtered {len(filtered_articles)} relevant articles from {len(articles)} total articles")
     return filtered_articles

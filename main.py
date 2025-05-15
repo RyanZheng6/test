@@ -1,18 +1,25 @@
 from Fetch_News_Article import fetch_news_api_articles, fetch_google_news_articles, process_articles
-from Relevancy_Module import create_keyword_file_if_not_exists, read_keywords
+from Relevancy_Module import read_keywords, display_keywords_info
 from Sentiment_Analysis import analyze_sentiment, generate_analysis_report
 from Excel_Creation_App import create_excel_file
 from Mailing_App import send_email
-
+import argparse
 
 def main():
-    # Initialize keyword file and read keywords
-    create_keyword_file_if_not_exists()
-    keywords = read_keywords('financial_keywords.txt')
-    print(f"Using keywords: {', '.join(keywords[:10])}... and {len(keywords) - 10} more")
+    # Set up command line argument parsing - only for keywords file
+    parser = argparse.ArgumentParser(description='News analysis tool for Nomura Holdings')
+    parser.add_argument('--keywords', '-k', type=str, 
+                      help='Path to custom keywords file (default: default_keywords.txt)')
+    args = parser.parse_args()
+    
+    # Fixed query - always Nomura Holdings
+    query = "Nomura Holdings"
+    
+    # Read keywords from specified file or use default
+    keywords = read_keywords(args.keywords)
+    display_keywords_info(keywords)
 
     # Fetch articles from both sources
-    query = "Nomura Holdings"
     news_api_articles = fetch_news_api_articles(query)
     google_news_articles = fetch_google_news_articles(query)
 
@@ -45,8 +52,15 @@ def main():
         # Generate and print analysis report
         if analyzed_articles:
             report, list_of_reports = generate_analysis_report(analyzed_articles, sentiments)
-            create_excel_file(query+".xlsx", query,["Title","Relevance Score","Sentiment: Negative","Summary: In This Article","Source"],
-                              list_of_reports)
+            
+            # Create Excel file with results
+            excel_filename = f"{query}.xlsx"
+            create_excel_file(excel_filename, query, 
+                             ["Title", "Relevance Score", "Sentiment: Negative", 
+                              "Summary: In This Article", "Source"],
+                             list_of_reports)
+            
+            # Send email with results
             recipients = [
                 "urvi.dedhia1@nomura.com",
                 "trisha.saxena@nomura.com",
@@ -54,9 +68,9 @@ def main():
                 "ryan.zheng1@nomura.com",
                 "atsushi.tahara@nomura.com",
                 "poorvanshi.sharma1@nomura.com"
-
             ]
-            send_email(query+".xlsx",recipients)
+            send_email(excel_filename, recipients)
+            
             print("\n" + "=" * 50 + "\n")
             print(report)
 

@@ -7,76 +7,120 @@ import feedparser
 from bs4 import BeautifulSoup
 from transformers import pipeline
 
-# Create a txt file with financial keywords
+DEFAULT_KEYWORDS_FILE = 'default_keywords.txt'
 
-
-def create_keyword_file_if_not_exists():
-    if not os.path.exists('financial_keywords.txt'):
-        with open('financial_keywords.txt', 'w') as f:
-            keywords = [
-                "bank",
-                "finance",
-                "market",
-                "invest",
-                "stock",
-                "share",
-                "bond",
-                "asset",
-                "capital",
-                "fund",
-                "trading",
-                "financial",
-                "securities",
-                "investment",
-                "debt",
-                "corporate",
-                "equity",
-                "merger",
-                "acquisition",
-                "investor",
-                "portfolio",
-                "management",
-                "risk",
-                "liquidity",
-                "profit",
-                "revenue",
-                "growth",
-                "fiscal",
-                "economic",
-                "global",
-                "advisor"
-            ]
-            f.write('\n'.join(keywords))
-
-
-def read_keywords(filename):
-    """Read keywords from a file."""
+def read_keywords(filename=None):
+    """Read keywords and their weights from a file.
+    
+    Args:
+        filename (str, optional): Path to keywords file. If None, uses default.
+    
+    Returns:
+        dict: Dictionary of keywords and their weights
+    """
+    # If no filename provided or file doesn't exist, use default
+    if not filename or not os.path.exists(filename):
+        filename = DEFAULT_KEYWORDS_FILE
+        
+    if not os.path.exists(filename):
+        print(f"Warning: Keywords file {filename} not found!")
+        return {}
+        
+    print(f"Reading keywords from: {filename}")
+    keywords_dict = {}
+    
     with open(filename, 'r') as f:
-        return [line.strip().lower() for line in f if line.strip()]
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check if the keyword has a weight
+            if ':' in line:
+                keyword, weight = line.rsplit(':', 1)
+                try:
+                    keywords_dict[keyword.strip().lower()] = int(weight.strip())
+                except ValueError:
+                    # If weight is not a valid integer, default to 1
+                    keywords_dict[keyword.strip().lower()] = 1
+            else:
+                # Default weight is 1 if no weight specified
+                keywords_dict[line.lower()] = 1
+    
+    return keywords_dict
 
 
 def calculate_relevance_score(text, keywords):
-    """Calculate relevance score based on keyword occurrence."""
+    """Calculate relevance score based on keyword occurrence and their weights.
+    
+    If keywords is a list, treat all keywords with equal weight of 1.
+    If keywords is a dict, use the weights provided in the dict.
+    """
     if not text:
         return 0
 
     text = text.lower()
     score = 0
 
-    for keyword in keywords:
-        # Count occurrences of the keyword in the text
-        # Use word boundary for single words to prevent partial matches
-        if len(keyword.split()) == 1:
-            # Use regex with word boundaries for single words
-            count = len(re.findall(r'\b' + re.escape(keyword) + r'\b', text))
-        else:
-            count = text.count(keyword.lower())
-
-        # Add to score (multi-word keywords get higher weight)
-        word_count = len(keyword.split())
-        score += count * word_count
+    # Check if keywords is a dictionary or list
+    if isinstance(keywords, dict):
+        # Dictionary with weights
+        for keyword, weight in keywords.items():
+            if len(keyword.split()) == 1:
+                count = len(re.findall(r'\b' + re.escape(keyword) + r'\b', text))
+            else:
+                count = text.count(keyword.lower())
+            
+            word_count = len(keyword.split())
+            score += count * word_count * weight
+    else:
+        # List of keywords (backwards compatibility)
+        for keyword in keywords:
+            if len(keyword.split()) == 1:
+                count = len(re.findall(r'\b' + re.escape(keyword) + r'\b', text))
+            else:
+                count = text.count(keyword.lower())
+            
+            word_count = len(keyword.split())
+            score += count * word_count
 
     return score
+
+
+def display_keywords_info(keywords):
+    """Display information about loaded keywords."""
+    if isinstance(keywords, dict):
+        total_keywords = len(keywords)
+        if total_keywords == 0:
+            print("No keywords loaded.")
+            return
+            
+        # Count keywords by weight
+        weight_counts = {}
+        for keyword, weight in keywords.items():
+            weight_counts[weight] = weight_counts.get(weight, 0) + 1
+        
+        # Sort keywords by weight for display
+        sorted_keywords = sorted(keywords.items(), key=lambda x: x[1], reverse=True)
+        
+        # Display summary information
+        print(f"Loaded {total_keywords} keywords")
+        print("Weight distribution:")
+        for weight, count in sorted(weight_counts.items(), reverse=True):
+            print(f"  - Weight {weight}: {count} keywords")
+        
+        print("Top keywords by weight:")
+        for keyword, weight in sorted_keywords[:5]:
+            print(f"  - {keyword} (weight: {weight})")
+        
+        if total_keywords > 5:
+            print(f"  - and {total_keywords - 5} more keywords...")
+    else:
+        # For backward compatibility with list format
+        print(f"Loaded {len(keywords)} keywords")
+        if keywords:
+            print(f"Sample keywords: {', '.join(keywords[:5])}" + 
+                 (f"... and {len(keywords) - 5} more" if len(keywords) > 5 else ""))
 
 
 def clean_html_content(html_content):

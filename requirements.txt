@@ -1,0 +1,7 @@
+requests
+feedparser
+beautifulsoup4
+transformers
+textblob
+openpyxl
+argparse
