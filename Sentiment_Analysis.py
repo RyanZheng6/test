@@ -47,21 +47,23 @@ def analyze_sentiment(articles, max_articles=5):
             'index': i + 1,
             'title': article['title'],
             'summary': summary,
+            'date': article['publishedAt'],
+            'author': article['author'],
+            'url': article.get('url', ''),
             'relevance_score': article['relevance_score'],
-            'sentiment': sentiment,
-            'url': article.get('url', '')
+            'sentiment': sentiment 
         })
         sentiments.append(sentiment)
-
+    
     return analyzed_articles, sentiments
 
 
-def generate_analysis_report(articles, sentiments):
+def generate_analysis_report(query, articles, sentiments):
     """Generate a detailed analysis report."""
     if not articles:
         return "No articles available for analysis."
 
-    report = "# Nomura Holdings News Analysis Report\n\n"
+    report = f"# {query} News Analysis Report\n\n"
     report += f"Analysis Date: {datetime.datetime.now().strftime('%Y-%m-%d')}\n"
     report += f"Articles Analyzed: {len(articles)}\n\n"
 
@@ -79,11 +81,11 @@ def generate_analysis_report(articles, sentiments):
     report += "\n## Most Relevant Articles\n\n"
     list_of_Reports = []
     for article in articles:
-        report += f"### [{article['index']}] {article['title']}\n"
-        report += f"Relevance Score: {article['relevance_score']}\n"
-        report += f"Sentiment: {article['sentiment']}\n"
+        # report += f"### [{article['index']}] {article['title']}\n"
+        # report += f"Relevance Score: {article['relevance_score']}\n"
+        # report += f"Sentiment: {article['sentiment']}\n"
 
-        # Extract and format summary
+        # # Extract and format summary
         summary_text = article['summary']
         # Remove HTML tags if present
         summary_text = re.sub(r'<.*?>', '', summary_text)
@@ -92,8 +94,10 @@ def generate_analysis_report(articles, sentiments):
         # Ensure we don't have empty lines
         summary_text = '\n'.join(line for line in summary_text.split('\n') if line.strip())
 
-        report += f"{summary_text}\n"
-        report += f"URL: {article['url']}\n\n"
-        list_of_Reports.append([article['title'],article['relevance_score'],article['sentiment'],article['summary'],article['url']])
+        # report += f"{summary_text}\n"
+        # report += f"URL: {article['url']}\n\n"
+        # print(article)
+        list_of_Reports.append([article['index'],article['title'],article['date'],
+                               article['author'],summary_text,article['url'],article['relevance_score'],article['sentiment']])
 
-    return report, list_of_Reports
+    return list_of_Reports

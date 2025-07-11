@@ -8,7 +8,8 @@ from bs4 import BeautifulSoup
 from transformers import pipeline
 from Relevancy_Module import calculate_relevance_score
 
-def fetch_news_api_articles(query, days_back=7, api_key="641688cba56f4ae8b7ef0acb60543185"):
+
+def fetch_news_api_articles(query, days_back=7, api_key="api_key"):
     """Fetch articles from News API."""
     print(f"Fetching articles from News API for: {query}")
     last_week = datetime.datetime.now() - datetime.timedelta(days=days_back)
@@ -72,24 +73,16 @@ def fetch_google_news_articles(query):
         return []
 
 
-def process_articles(articles, keywords):
-    """Process and filter articles.
-    
-    Args:
-        articles (list): List of articles to process
-        keywords (dict or list): Keywords to use for relevance scoring
-        
-    Returns:
-        list: Filtered and processed articles
-    """
+def process_articles(query, articles, keywords):
+    """Process and filter articles."""
     filtered_articles = []
-    min_relevance_score = 3  # Minimum score to consider an article relevant
 
     for article in articles:
         title = article.get('title', '') or ''
         description = article.get('description', '') or ''
         content = article.get('content', '') or ''
-
+        """
+        # works only for nomura
         # Check if 'nomura' appears in the title, description or content
         if ('nomura' in title.lower() or
                 'nomura' in description.lower() or
@@ -97,11 +90,17 @@ def process_articles(articles, keywords):
             # Combine all text for relevance scoring
             combined_text = f"{title} {description} {content}"
             relevance_score = calculate_relevance_score(combined_text, keywords)
+        """
+        # for now, using first word as search word, eventually it will be replace by the given list of search words for each client
+        search_word = query.split()[0].lower()
+        if (search_word in title.lower() or
+                search_word in description.lower() or
+                search_word in content.lower()):
+            # Combine all text for relevance scoring
+            combined_text = f"{title} {description} {content}"
+            relevance_score = calculate_relevance_score(combined_text, keywords)
+            # Add relevance score to article
+            article['relevance_score'] = relevance_score
+            filtered_articles.append(article)
 
-            # Add relevance score to article if it meets the minimum threshold
-            if relevance_score >= min_relevance_score:
-                article['relevance_score'] = relevance_score
-                filtered_articles.append(article)
-
-    print(f"Filtered {len(filtered_articles)} relevant articles from {len(articles)} total articles")
     return filtered_articles
