@@ -10,14 +10,14 @@ from bs4 import BeautifulSoup
 from transformers import pipeline
 
 
-def analyze_sentiment(articles, max_articles=5):
-    """Analyze sentiment for the top articles."""
+def analyze_sentiment(articles):
+    """Analyze sentiment for all articles."""
     if not articles:
         return [], []
 
-    print(f"Analyzing sentiment for top {min(max_articles, len(articles))} articles:")
+    print(f"Analyzing sentiment for {len(articles)} articles:")
 
-    # Process top articles
+    # Process all articles
     analyzed_articles = []
     sentiments = []
 
@@ -34,7 +34,7 @@ def analyze_sentiment(articles, max_articles=5):
         else:
             return 'Very Negative'
 
-    for i, article in enumerate(articles[:max_articles]):
+    for i, article in enumerate(articles):
         # Create a custom summary
         summary = create_custom_summary(article)
 

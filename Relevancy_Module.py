@@ -7,63 +7,72 @@ import feedparser
 from bs4 import BeautifulSoup
 from transformers import pipeline
 
-# Create a txt file with financial keywords
+def read_keywords_with_weights(filename):
+    """Read keywords with weights from a file."""
+    keywords = {}
+    
+    if not os.path.exists(filename):
+        print(f"Warning: {filename} not found. Using default keywords.")
+        filename = 'default_keywords.txt'
+    
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):  # Skip empty lines and comments
+                    continue
+                
+                # Check if line contains weight (keyword:weight format)
+                if ':' in line:
+                    parts = line.split(':', 1)
+                    keyword = parts[0].strip().lower()
+                    try:
+                        weight = int(parts[1].strip())
+                        # Ensure weight is between 1-5
+                        weight = max(1, min(5, weight))
+                    except ValueError:
+                        print(f"Warning: Invalid weight for keyword '{keyword}'. Using default weight 3.")
+                        weight = 3
+                else:
+                    # No weight specified, use default
+                    keyword = line.lower()
+                    weight = 3
+                
+                keywords[keyword] = weight
+        
+        print(f"Loaded {len(keywords)} keywords from {filename}")
+        return keywords
+    
+    except Exception as e:
+        print(f"Error reading keywords file {filename}: {e}")
+        print("Using default keywords...")
+        return read_keywords_with_weights('default_keywords.txt')
 
+def get_client_keywords(client_name):
+    """Get keywords for a specific client."""
+    # Create filename from client name
+    safe_filename = re.sub(r'[^\w\s-]', '', client_name)  # Remove special chars
+    safe_filename = re.sub(r'[-\s]+', '_', safe_filename)  # Replace spaces/hyphens with underscores
+    keywords_file = f"{safe_filename}.txt"
+    
+    print(f"Looking for keywords file: {keywords_file}")
+    
+    if os.path.exists(keywords_file):
+        print(f"Using client-specific keywords from {keywords_file}")
+        return read_keywords_with_weights(keywords_file)
+    else:
+        print(f"No client-specific keywords found for {client_name}. Using default keywords.")
+        return read_keywords_with_weights('default_keywords.txt')
 
-def create_keyword_file_if_not_exists():
-    if not os.path.exists('financial_keywords.txt'):
-        with open('financial_keywords.txt', 'w') as f:
-            keywords = [
-                "bank",
-                "finance",
-                "market",
-                "invest",
-                "stock",
-                "share",
-                "bond",
-                "asset",
-                "capital",
-                "fund",
-                "trading",
-                "financial",
-                "securities",
-                "investment",
-                "debt",
-                "corporate",
-                "equity",
-                "merger",
-                "acquisition",
-                "investor",
-                "portfolio",
-                "management",
-                "risk",
-                "liquidity",
-                "profit",
-                "revenue",
-                "growth",
-                "fiscal",
-                "economic",
-                "global",
-                "advisor"
-            ]
-            f.write('\n'.join(keywords))
-
-
-def read_keywords(filename):
-    """Read keywords from a file."""
-    with open(filename, 'r') as f:
-        return [line.strip().lower() for line in f if line.strip()]
-
-
-def calculate_relevance_score(text, keywords):
-    """Calculate relevance score based on keyword occurrence."""
-    if not text:
+def calculate_relevance_score(text, keywords_dict):
+    """Calculate relevance score based on keyword occurrence and weights."""
+    if not text or not keywords_dict:
         return 0
 
     text = text.lower()
     score = 0
 
-    for keyword in keywords:
+    for keyword, weight in keywords_dict.items():
         # Count occurrences of the keyword in the text
         # Use word boundary for single words to prevent partial matches
         if len(keyword.split()) == 1:
@@ -72,12 +81,14 @@ def calculate_relevance_score(text, keywords):
         else:
             count = text.count(keyword.lower())
 
-        # Add to score (multi-word keywords get higher weight)
+        # Add to score (weight multiplies the base score)
+        # Multi-word keywords get higher base weight
         word_count = len(keyword.split())
-        score += count * word_count
+        base_score = count * word_count
+        weighted_score = base_score * weight
+        score += weighted_score
 
     return score
-
 
 def clean_html_content(html_content):
     """Extract readable text from HTML content."""
@@ -102,7 +113,6 @@ def clean_html_content(html_content):
     else:
         # Not HTML, just return as is with length limit
         return html_content[:300] + "..." if len(html_content) > 300 else html_content
-
 
 def create_custom_summary(article):
     """Create a simple summary based on article data."""
